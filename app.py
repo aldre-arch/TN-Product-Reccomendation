@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import os
 import re
-import urllib.parse  # Menambahkan library untuk encoding pesan yang lebih stabil
+import urllib.parse
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Product Recommendation System", layout="wide")
 
 # --- KONFIGURASI URL GITHUB RAW ---
-# Ini adalah kunci untuk fitur direct download brosur
+# Pastikan nama repo sesuai (TN-Product-Reccomendation atau TN-Product-Library)
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
 
 # --- CUSTOM CSS ---
@@ -57,8 +57,7 @@ def handle_reset():
     st.session_state.show_dialog = False
     st.session_state.detail_row = None
     st.session_state.submitted = False
-    if 'filter_params' in st.session_state:
-        st.session_state.filter_params = {} 
+    st.session_state.filter_params = {} 
 
 def click_detail(row):
     st.session_state.detail_row = row
@@ -80,10 +79,14 @@ def get_image_path(filename):
         return "https://via.placeholder.com/300x200?text=No+Image"
     base_path = os.path.join("static", "images")
     clean_name = str(filename).strip()
+    
+    # Cek JPG
     if os.path.exists(os.path.join(base_path, f"{clean_name}.jpg")):
         return os.path.join(base_path, f"{clean_name}.jpg")
+    # Cek PNG
     if os.path.exists(os.path.join(base_path, f"{clean_name}.png")):
         return os.path.join(base_path, f"{clean_name}.png")
+        
     return "https://via.placeholder.com/300x200?text=No+Image"
 
 # --- FUNGSI POPUP DETAIL ---
@@ -117,8 +120,7 @@ def show_detail(row):
     spec_name = str(row.get('General Specifications', '')).strip()
     found_path = os.path.join("static", "brochures", f"{spec_name}.pdf")
 
-    # Gunakan urllib.parse.quote untuk mengubah spasi menjadi %20 secara otomatis
-    import urllib.parse
+    # URL Encoding untuk menangani spasi pada nama file PDF
     spec_name_encoded = urllib.parse.quote(spec_name)
     
     col_dl, col_share = st.columns(2) 
@@ -135,16 +137,13 @@ def show_detail(row):
                 )
 
         with col_share:
-            # Menggunakan GitHub Raw agar file langsung terunduh saat link diklik di WhatsApp
             public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
             
-            # Menyusun pesan WhatsApp yang lebih rapi
             raw_message = (
                 f"Brand: {brand}\n"
                 f"Model: {model}\n\n"
                 f"Klik link di bawah untuk mengunduh brosur:\n{public_url}"
             )
-            # Encoding pesan agar karakter khusus (seperti \n) terbaca dengan benar
             encoded_message = urllib.parse.quote(raw_message)
             whatsapp_url = f"https://wa.me/?text={encoded_message}"
             
@@ -159,7 +158,7 @@ def show_detail(row):
     st.markdown("---")
     st.caption("Gunakan ikon 'X' di pojok kanan atas untuk menutup detail.")
 
-# --- MAIN APP --- (Sisanya tetap sama)
+# --- MAIN APP ---
 def main():
     if 'form_key' not in st.session_state: st.session_state.form_key = 0
     if 'show_dialog' not in st.session_state: st.session_state.show_dialog = False
@@ -178,39 +177,78 @@ def main():
     unique_locations = get_uniques('Processed_Locations')
     unique_floors = get_uniques('Floor_Type_List')
 
+    # --- SIDEBAR FILTERS (LIVE SEARCH VERSION) ---
     st.sidebar.header("🎛️ Filter Pencarian")
     if st.sidebar.button("🔄 Reset Filter"):
         handle_reset()
         st.session_state.form_key += 1
         st.rerun()
 
-    with st.sidebar.form(key=f"filter_form_{st.session_state.form_key}"):
-        pilihan_produk = st.radio("Brand / Kategori", ["Semua", "Manual (Fiorentini)", "Otomatis (Gausium)"], 
-                                 index=["Semua", "Manual (Fiorentini)", "Otomatis (Gausium)"].index(st.session_state.filter_params.get('pilihan_produk', "Semua")))
-        
-        types = sorted(df['Product_type'].dropna().unique().tolist())
-        filter_type = st.multiselect("Tipe Produk", types, default=st.session_state.filter_params.get('filter_type', []))
-        filter_loc = st.multiselect("Lokasi Aplikasi", unique_locations, default=st.session_state.filter_params.get('filter_loc', [])) 
-        filter_area = st.number_input("Target Area (m²/h)", min_value=0, step=100, value=st.session_state.filter_params.get('filter_area', 0))
-        
-        sizes = sorted(df['Ukuran Produk'].dropna().unique().tolist()) if 'Ukuran Produk' in df.columns else []
-        filter_size = st.multiselect("Ukuran Produk", sizes, default=st.session_state.filter_params.get('filter_size', []))
-        
-        weights = sorted(df['Berat Produk'].dropna().unique().tolist()) if 'Berat Produk' in df.columns else []
-        filter_weight = st.multiselect("Berat Produk", weights, default=st.session_state.filter_params.get('filter_weight', []))
+    # Mengeluarkan widget dari st.form agar setiap perubahan langsung diproses
+    pilihan_produk = st.sidebar.radio(
+        "Brand / Kategori", 
+        ["Semua", "Manual (Fiorentini)", "Otomatis (Gausium)"], 
+        index=["Semua", "Manual (Fiorentini)", "Otomatis (Gausium)"].index(st.session_state.filter_params.get('pilihan_produk', "Semua")),
+        key=f"radio_{st.session_state.form_key}"
+    )
+    
+    types = sorted(df['Product_type'].dropna().unique().tolist())
+    filter_type = st.sidebar.multiselect(
+        "Tipe Produk", 
+        types, 
+        default=st.session_state.filter_params.get('filter_type', []),
+        key=f"type_{st.session_state.form_key}"
+    )
+    
+    filter_loc = st.sidebar.multiselect(
+        "Lokasi Aplikasi", 
+        unique_locations, 
+        default=st.session_state.filter_params.get('filter_loc', []),
+        key=f"loc_{st.session_state.form_key}"
+    ) 
+    
+    filter_area = st.sidebar.number_input(
+        "Target Area (m²/h)", 
+        min_value=0, 
+        step=100, 
+        value=st.session_state.filter_params.get('filter_area', 0),
+        key=f"area_{st.session_state.form_key}"
+    )
+    
+    sizes = sorted(df['Ukuran Produk'].dropna().unique().tolist()) if 'Ukuran Produk' in df.columns else []
+    filter_size = st.sidebar.multiselect(
+        "Ukuran Produk", 
+        sizes, 
+        default=st.session_state.filter_params.get('filter_size', []),
+        key=f"size_{st.session_state.form_key}"
+    )
+    
+    weights = sorted(df['Berat Produk'].dropna().unique().tolist()) if 'Berat Produk' in df.columns else []
+    filter_weight = st.sidebar.multiselect(
+        "Berat Produk", 
+        weights, 
+        default=st.session_state.filter_params.get('filter_weight', []),
+        key=f"weight_{st.session_state.form_key}"
+    )
 
-        filter_floor = st.multiselect("Tipe Lantai", unique_floors, default=st.session_state.filter_params.get('filter_floor', []))
+    filter_floor = st.sidebar.multiselect(
+        "Tipe Lantai", 
+        unique_floors, 
+        default=st.session_state.filter_params.get('filter_floor', []),
+        key=f"floor_{st.session_state.form_key}"
+    )
 
-        if st.form_submit_button("Cari Rekomendasi 🚀"):
-            st.session_state.submitted = True
-            st.session_state.filter_params = {
-                'pilihan_produk': pilihan_produk, 'filter_type': filter_type,
-                'filter_loc': filter_loc, 'filter_area': filter_area,
-                'filter_size': filter_size, 'filter_weight': filter_weight,
-                'filter_floor': filter_floor
-            }
+    # Secara otomatis simpan parameter ke session_state setiap ada interaksi
+    st.session_state.submitted = True
+    st.session_state.filter_params = {
+        'pilihan_produk': pilihan_produk, 'filter_type': filter_type,
+        'filter_loc': filter_loc, 'filter_area': filter_area,
+        'filter_size': filter_size, 'filter_weight': filter_weight,
+        'filter_floor': filter_floor
+    }
 
-    if st.session_state.submitted and st.session_state.filter_params:
+    # --- LOGIKA FILTERING ---
+    if st.session_state.submitted:
         params = st.session_state.filter_params
         res = df.copy()
 
@@ -249,12 +287,16 @@ def main():
                         st.image(get_image_path(row['General Specifications']))
                         st.markdown("<div class='detail-card-content'>", unsafe_allow_html=True)
                         st.markdown(f"**{row['Brand']}**")
+                        
+                        # Menampilkan Model Variations di card utama
                         model_val = row.get('Model Variations', '-')
                         st.markdown(f"<small>{model_val}</small>", unsafe_allow_html=True)
+                        
+                        
                         st.markdown("</div>", unsafe_allow_html=True)
                         st.button("Lihat Detail", key=f"btn_{index}", on_click=click_detail, args=(row,))
         else:
-            st.warning("Tidak ada produk yang cocok.")
+            st.warning("Tidak ada produk yang cocok dengan kombinasi filter ini.")
             
     if st.session_state.show_dialog and st.session_state.detail_row is not None:
         show_detail(st.session_state.detail_row)
