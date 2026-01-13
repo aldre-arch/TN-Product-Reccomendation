@@ -146,8 +146,11 @@ def show_detail(row):
                 )
 
         with col_share: 
-            GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
-            public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name}.pdf"
+            BASE_URL = "URL_APLIKASI_STREAMLIT_ANDA" 
+            public_url = f"{BASE_URL}/static/brochures/{spec_name}.pdf" 
+            message = f"Lihat brosur produk {brand} - {spec_name}: {public_url}"
+            encoded_message = re.sub(r'\s+', '%20', message)
+            whatsapp_url = f"https://wa.me/?text={encoded_message}"
             
             st.markdown(f"""
                 <a href="{whatsapp_url}" target="_blank" style="text-decoration: none;">
