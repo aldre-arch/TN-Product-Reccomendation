@@ -148,7 +148,7 @@ def show_detail(row):
         with col_share:
             BASE_URL = "https://tn-pd-library.streamlit.app/" 
             public_url = f"{BASE_URL}/static/brochures/{spec_name}.pdf" 
-            message = f"Lihat brosur produk {brand} - {spec_name}: {public_url}"
+            message = f"Lihat/Download brosur produk {brand} - {spec_name} melalui link berikut: {public_url}"
             encoded_message = re.sub(r'\s+', '%20', message)
             whatsapp_url = f"https://wa.me/?text={encoded_message}"
             
