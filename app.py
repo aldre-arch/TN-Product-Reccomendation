@@ -245,6 +245,8 @@ def main():
                         st.image(get_image_path(row['General Specifications']))
                         st.markdown("<div class='detail-card-content'>", unsafe_allow_html=True)
                         st.markdown(f"**{row['Brand']}**")
+                        model_val = row.get('Model Variations', '-')
+                        st.markdown(f"<small>{model_val}</small>", unsafe_allow_html=True)
                         st.caption(f"{row['General Specifications']}")
                         st.markdown("</div>", unsafe_allow_html=True)
                         st.button("Lihat Detail", key=f"btn_{index}", on_click=click_detail, args=(row,))
