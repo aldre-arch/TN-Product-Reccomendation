@@ -145,12 +145,9 @@ def show_detail(row):
                     key=f"dl_{spec_name}"
                 )
 
-        with col_share:
-            BASE_URL = "https://tn-pd-library.streamlit.app/" 
-            public_url = f"{BASE_URL}/static/brochures/{spec_name}.pdf" 
-            message = f"Lihat/Download brosur produk {brand} - {spec_name} melalui link berikut: {public_url}"
-            encoded_message = re.sub(r'\s+', '%20', message)
-            whatsapp_url = f"https://wa.me/?text={encoded_message}"
+        with col_share: 
+            GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
+            public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name}.pdf"
             
             st.markdown(f"""
                 <a href="{whatsapp_url}" target="_blank" style="text-decoration: none;">
