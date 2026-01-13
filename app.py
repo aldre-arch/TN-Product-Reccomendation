@@ -2,40 +2,35 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+import urllib.parse  # Menambahkan library untuk encoding pesan yang lebih stabil
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Product Recommendation System", layout="wide")
 
+# --- KONFIGURASI URL GITHUB RAW ---
+# Ini adalah kunci untuk fitur direct download brosur
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
+
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    /* Styling dasar tombol Streamlit agar konsisten */
     .stButton button, .stDownloadButton button {
         width: 100% !important;
         height: 42px !important;
     }
-    
-    .block-container {
-        padding-top: 2rem;
-    }
-
-    /* KONTROL TINGGI CARD */
+    .block-container { padding-top: 2rem; }
     .stContainer {
         min-height: 400px; 
         display: flex;
         flex-direction: column;
         justify-content: space-between; 
     }
-
-    /* KONTROL GAMBAR di dalam card */
     .stContainer img {
         height: 200px; 
         object-fit: contain; 
         width: 100%;
         padding-bottom: 10px; 
     }
-
-    /* Styling Tombol WhatsApp Custom agar mirip tombol Streamlit */
     .wa-button {
         display: flex;
         align-items: center;
@@ -52,14 +47,8 @@ st.markdown("""
         font-size: 14px;
         transition: background-color 0.3s;
     }
-    .wa-button:hover {
-        background-color: #128C7E;
-        color: white !important;
-    }
-
-    .detail-card-content {
-        flex-grow: 1; 
-    }
+    .wa-button:hover { background-color: #128C7E; color: white !important; }
+    .detail-card-content { flex-grow: 1; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -114,9 +103,7 @@ def show_detail(row):
         st.write(f"**Tipe Produk:** {row.get('Product_type', '-')}")
         st.write(f"**Kategori Ukuran:** {row.get('Ukuran Produk', '-')}")
         st.write(f"**Kategori Berat:** {row.get('Berat Produk', '-')}")
-        # --- PENAMBAHAN DATA POWER SOURCE ---
         st.write(f"**Sumber Daya:** {row.get('Power Source', '-')}")
-        # ------------------------------------
         st.write(f"**Net Weight:** {row.get('Net Weight (kg)', '-')} Kg")
         
     with col2:
@@ -124,11 +111,9 @@ def show_detail(row):
         st.write(f"**Panjang (L):** {row.get('Measures_L', '-')} mm")
         st.write(f"**Lebar (W):** {row.get('Measures_W', '-')} mm")
         st.write(f"**Tinggi (H):** {row.get('Measures_H', '-')} mm")
-        st.write(f"**Total Dimensi:** {row.get('Measures_Total', '-')} mm")
 
     st.markdown("---")
     
-    # LOGIKA TOMBOL AKSI
     spec_name = str(row.get('General Specifications', '')).strip()
     found_path = os.path.join("static", "brochures", f"{spec_name}.pdf")
     
@@ -146,10 +131,17 @@ def show_detail(row):
                 )
 
         with col_share:
-            BASE_URL = "https://tn-pd-library.streamlit.app/" 
-            public_url = f"{BASE_URL}/static/brochures/{spec_name}.pdf" 
-            message = f"Lihat/Download brosur produk {brand} - {spec_name} melalui link berikut: {public_url}"
-            encoded_message = re.sub(r'\s+', '%20', message)
+            # Menggunakan GitHub Raw agar file langsung terunduh saat link diklik di WhatsApp
+            public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name}.pdf" 
+            
+            # Menyusun pesan WhatsApp yang lebih rapi
+            raw_message = (
+                f"Brand: {brand}\n"
+                f"Model: {model}\n\n"
+                f"Klik link di bawah untuk mengunduh brosur:\n{public_url}"
+            )
+            # Encoding pesan agar karakter khusus (seperti \n) terbaca dengan benar
+            encoded_message = urllib.parse.quote(raw_message)
             whatsapp_url = f"https://wa.me/?text={encoded_message}"
             
             st.markdown(f"""
@@ -163,7 +155,7 @@ def show_detail(row):
     st.markdown("---")
     st.caption("Gunakan ikon 'X' di pojok kanan atas untuk menutup detail.")
 
-# --- MAIN APP ---
+# --- MAIN APP --- (Sisanya tetap sama)
 def main():
     if 'form_key' not in st.session_state: st.session_state.form_key = 0
     if 'show_dialog' not in st.session_state: st.session_state.show_dialog = False
@@ -172,7 +164,6 @@ def main():
 
     df = load_data()
 
-    # --- EKSTRAKSI DATA UNIK ---
     def get_uniques(col):
         if col in df.columns:
             temp = df[col].dropna().astype(str).str.replace(r"[\[\]']", '', regex=True)
@@ -183,7 +174,6 @@ def main():
     unique_locations = get_uniques('Processed_Locations')
     unique_floors = get_uniques('Floor_Type_List')
 
-    # --- SIDEBAR FILTERS ---
     st.sidebar.header("🎛️ Filter Pencarian")
     if st.sidebar.button("🔄 Reset Filter"):
         handle_reset()
@@ -216,12 +206,10 @@ def main():
                 'filter_floor': filter_floor
             }
 
-    # --- LOGIKA FILTERING ---
     if st.session_state.submitted and st.session_state.filter_params:
         params = st.session_state.filter_params
         res = df.copy()
 
-        # Hard Filtering
         if params['pilihan_produk'] == "Manual (Fiorentini)":
             res = res[res['Brand'].str.contains("Fiorentini", case=False, na=False)]
         elif params['pilihan_produk'] == "Otomatis (Gausium)":
@@ -246,7 +234,6 @@ def main():
             pattern = "|".join([re.escape(f) for f in params['filter_floor']])
             res = res[res['Floor_Type_List'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
 
-        # Tampilkan Hasil
         st.divider()
         st.subheader(f"Hasil: {len(res)} Produk Ditemukan")
         
