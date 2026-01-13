@@ -116,6 +116,10 @@ def show_detail(row):
     
     spec_name = str(row.get('General Specifications', '')).strip()
     found_path = os.path.join("static", "brochures", f"{spec_name}.pdf")
+
+    # Gunakan urllib.parse.quote untuk mengubah spasi menjadi %20 secara otomatis
+    import urllib.parse
+    spec_name_encoded = urllib.parse.quote(spec_name)
     
     col_dl, col_share = st.columns(2) 
 
@@ -132,7 +136,7 @@ def show_detail(row):
 
         with col_share:
             # Menggunakan GitHub Raw agar file langsung terunduh saat link diklik di WhatsApp
-            public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name}.pdf" 
+            public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
             
             # Menyusun pesan WhatsApp yang lebih rapi
             raw_message = (
