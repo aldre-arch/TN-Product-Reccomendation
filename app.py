@@ -8,7 +8,6 @@ import urllib.parse
 st.set_page_config(page_title="Product Recommendation System", layout="wide")
 
 # --- KONFIGURASI URL GITHUB RAW ---
-# Pastikan nama repo sesuai (TN-Product-Reccomendation atau TN-Product-Library)
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
 
 # --- CUSTOM CSS ---
@@ -56,7 +55,6 @@ st.markdown("""
 def handle_reset():
     st.session_state.show_dialog = False
     st.session_state.detail_row = None
-    st.session_state.submitted = False
     st.session_state.filter_params = {} 
 
 def click_detail(row):
@@ -80,10 +78,8 @@ def get_image_path(filename):
     base_path = os.path.join("static", "images")
     clean_name = str(filename).strip()
     
-    # Cek JPG
     if os.path.exists(os.path.join(base_path, f"{clean_name}.jpg")):
         return os.path.join(base_path, f"{clean_name}.jpg")
-    # Cek PNG
     if os.path.exists(os.path.join(base_path, f"{clean_name}.png")):
         return os.path.join(base_path, f"{clean_name}.png")
         
@@ -119,8 +115,6 @@ def show_detail(row):
     
     spec_name = str(row.get('General Specifications', '')).strip()
     found_path = os.path.join("static", "brochures", f"{spec_name}.pdf")
-
-    # URL Encoding untuk menangani spasi pada nama file PDF
     spec_name_encoded = urllib.parse.quote(spec_name)
     
     col_dl, col_share = st.columns(2) 
@@ -138,7 +132,6 @@ def show_detail(row):
 
         with col_share:
             public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
-            
             raw_message = (
                 f"Brand: {brand}\n"
                 f"Model: {model}\n\n"
@@ -162,7 +155,6 @@ def show_detail(row):
 def main():
     if 'form_key' not in st.session_state: st.session_state.form_key = 0
     if 'show_dialog' not in st.session_state: st.session_state.show_dialog = False
-    if 'submitted' not in st.session_state: st.session_state.submitted = False
     if 'filter_params' not in st.session_state: st.session_state.filter_params = {}
 
     df = load_data()
@@ -177,14 +169,14 @@ def main():
     unique_locations = get_uniques('Processed_Locations')
     unique_floors = get_uniques('Floor_Type_List')
 
-    # --- SIDEBAR FILTERS (LIVE SEARCH VERSION) ---
+    # --- SIDEBAR FILTERS (LIVE SEARCH - TANPA FORM BUTTON) ---
     st.sidebar.header("🎛️ Filter Pencarian")
     if st.sidebar.button("🔄 Reset Filter"):
         handle_reset()
         st.session_state.form_key += 1
         st.rerun()
 
-    # Mengeluarkan widget dari st.form agar setiap perubahan langsung diproses
+    # Widget langsung diletakkan di sidebar tanpa 'with st.sidebar.form'
     pilihan_produk = st.sidebar.radio(
         "Brand / Kategori", 
         ["Semua", "Manual (Fiorentini)", "Otomatis (Gausium)"], 
@@ -238,65 +230,63 @@ def main():
         key=f"floor_{st.session_state.form_key}"
     )
 
-    # Secara otomatis simpan parameter ke session_state setiap ada interaksi
-    st.session_state.submitted = True
+    # Simpan parameter ke session_state agar filter langsung aktif
     st.session_state.filter_params = {
-        'pilihan_produk': pilihan_produk, 'filter_type': filter_type,
-        'filter_loc': filter_loc, 'filter_area': filter_area,
-        'filter_size': filter_size, 'filter_weight': filter_weight,
+        'pilihan_produk': pilihan_produk, 
+        'filter_type': filter_type,
+        'filter_loc': filter_loc, 
+        'filter_area': filter_area,
+        'filter_size': filter_size, 
+        'filter_weight': filter_weight,
         'filter_floor': filter_floor
     }
 
-    # --- LOGIKA FILTERING ---
-    if st.session_state.submitted:
-        params = st.session_state.filter_params
-        res = df.copy()
+    # --- LOGIKA FILTERING (LANGSUNG JALAN) ---
+    params = st.session_state.filter_params
+    res = df.copy()
 
-        if params['pilihan_produk'] == "Manual (Fiorentini)":
-            res = res[res['Brand'].str.contains("Fiorentini", case=False, na=False)]
-        elif params['pilihan_produk'] == "Otomatis (Gausium)":
-            res = res[res['Brand'].str.contains("Gausium", case=False, na=False)]
-            
-        if params['filter_type']:
-            res = res[res['Product_type'].isin(params['filter_type'])]
-            
-        if params['filter_area'] > 0:
-            res['Recommended Coverage Area_min'] = pd.to_numeric(res['Recommended Coverage Area_min'], errors='coerce')
-            res['Recommended Coverage Area_max'] = pd.to_numeric(res['Recommended Coverage Area_max'], errors='coerce')
-            res = res[(res['Recommended Coverage Area_min'] <= params['filter_area']) & (res['Recommended Coverage Area_max'].fillna(float('inf')) >= params['filter_area'])]
+    if params['pilihan_produk'] == "Manual (Fiorentini)":
+        res = res[res['Brand'].str.contains("Fiorentini", case=False, na=False)]
+    elif params['pilihan_produk'] == "Otomatis (Gausium)":
+        res = res[res['Brand'].str.contains("Gausium", case=False, na=False)]
         
-        if params['filter_size']: res = res[res['Ukuran Produk'].isin(params['filter_size'])]
-        if params['filter_weight']: res = res[res['Berat Produk'].isin(params['filter_weight'])]
-
-        if params['filter_loc']:
-            pattern = "|".join([re.escape(f) for f in params['filter_loc']])
-            res = res[res['Processed_Locations'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
-
-        if params['filter_floor']:
-            pattern = "|".join([re.escape(f) for f in params['filter_floor']])
-            res = res[res['Floor_Type_List'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
-
-        st.divider()
-        st.subheader(f"Hasil: {len(res)} Produk Ditemukan")
+    if params['filter_type']:
+        res = res[res['Product_type'].isin(params['filter_type'])]
         
-        if len(res) > 0:
-            cols = st.columns(3)
-            for idx, (index, row) in enumerate(res.iterrows()):
-                with cols[idx % 3]:
-                    with st.container(border=True):
-                        st.image(get_image_path(row['General Specifications']))
-                        st.markdown("<div class='detail-card-content'>", unsafe_allow_html=True)
-                        st.markdown(f"**{row['Brand']}**")
-                        
-                        # Menampilkan Model Variations di card utama
-                        model_val = row.get('Model Variations', '-')
-                        st.markdown(f"<small>{model_val}</small>", unsafe_allow_html=True)
-                        
-                        
-                        st.markdown("</div>", unsafe_allow_html=True)
-                        st.button("Lihat Detail", key=f"btn_{index}", on_click=click_detail, args=(row,))
-        else:
-            st.warning("Tidak ada produk yang cocok dengan kombinasi filter ini.")
+    if params['filter_area'] > 0:
+        res['Recommended Coverage Area_min'] = pd.to_numeric(res['Recommended Coverage Area_min'], errors='coerce')
+        res['Recommended Coverage Area_max'] = pd.to_numeric(res['Recommended Coverage Area_max'], errors='coerce')
+        res = res[(res['Recommended Coverage Area_min'] <= params['filter_area']) & (res['Recommended Coverage Area_max'].fillna(float('inf')) >= params['filter_area'])]
+    
+    if params['filter_size']: res = res[res['Ukuran Produk'].isin(params['filter_size'])]
+    if params['filter_weight']: res = res[res['Berat Produk'].isin(params['filter_weight'])]
+
+    if params['filter_loc']:
+        pattern = "|".join([re.escape(f) for f in params['filter_loc']])
+        res = res[res['Processed_Locations'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
+
+    if params['filter_floor']:
+        pattern = "|".join([re.escape(f) for f in params['filter_floor']])
+        res = res[res['Floor_Type_List'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
+
+    st.divider()
+    st.subheader(f"Hasil: {len(res)} Produk Ditemukan")
+    
+    if len(res) > 0:
+        cols = st.columns(3)
+        for idx, (index, row) in enumerate(res.iterrows()):
+            with cols[idx % 3]:
+                with st.container(border=True):
+                    st.image(get_image_path(row['General Specifications']))
+                    st.markdown("<div class='detail-card-content'>", unsafe_allow_html=True)
+                    st.markdown(f"**{row['Brand']}**")
+                    model_val = row.get('Model Variations', '-')
+                    st.markdown(f"<small>{model_val}</small>", unsafe_allow_html=True)
+                    st.caption(f"{row['General Specifications']}")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    st.button("Lihat Detail", key=f"btn_{index}", on_click=click_detail, args=(row,))
+    else:
+        st.warning("Tidak ada produk yang cocok dengan filter ini.")
             
     if st.session_state.show_dialog and st.session_state.detail_row is not None:
         show_detail(st.session_state.detail_row)
