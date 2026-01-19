@@ -138,7 +138,6 @@ def show_detail(row):
         # Persiapan Pesan Share
         public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
         raw_message = (
-            f"I'm interested in this product:\n\n"
             f"Brand: {brand}\n"
             f"Model: {model}\n\n"
             f"Click the link below to download the brochure:\n{public_url}"
