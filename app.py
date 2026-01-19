@@ -7,7 +7,7 @@ import urllib.parse
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="Product Recommendation Library", layout="wide")
 
-# --- GITHUB RAW URL CONFIGURATION (UPDATED TO CORRECT REPO NAME) ---
+# --- GITHUB RAW URL CONFIGURATION ---
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
 
 # --- CUSTOM CSS ---
@@ -30,7 +30,6 @@ st.markdown("""
         width: 100%;
         padding-bottom: 10px; 
     }
-    /* Common style for custom buttons */
     .custom-button {
         display: flex;
         align-items: center;
@@ -47,10 +46,8 @@ st.markdown("""
         transition: opacity 0.3s;
     }
     .custom-button:hover { opacity: 0.8; color: white !important; }
-    
     .wa-button { background-color: #25D366; }
-    .email-button { background-color: #0078D4; } /* Blue for Email */
-    
+    .email-button { background-color: #0078D4; }
     .detail-card-content { flex-grow: 1; }
 </style>
 """, unsafe_allow_html=True)
@@ -81,12 +78,10 @@ def get_image_path(filename):
         return "https://via.placeholder.com/300x200?text=No+Image"
     base_path = os.path.join("static", "images")
     clean_name = str(filename).strip()
-    
     if os.path.exists(os.path.join(base_path, f"{clean_name}.jpg")):
         return os.path.join(base_path, f"{clean_name}.jpg")
     if os.path.exists(os.path.join(base_path, f"{clean_name}.png")):
         return os.path.join(base_path, f"{clean_name}.png")
-        
     return "https://via.placeholder.com/300x200?text=No+Image"
 
 # --- PRODUCT DETAIL POPUP ---
@@ -94,8 +89,10 @@ def get_image_path(filename):
 def show_detail(row):
     brand = row['Brand'] if not pd.isna(row['Brand']) else "-"
     model = row['Model Variations'] if not pd.isna(row['Model Variations']) else "-"
+    aisle_w = row.get('Aisle Width (mm)', '-')
+    aisle_c = row.get('Aisle Category', '-')
+
     st.header(f"{brand} - {model}")
-    
     img_path = get_image_path(row.get('General Specifications'))
     st.image(img_path, width=250) 
     
@@ -104,16 +101,14 @@ def show_detail(row):
     with col1:
         st.subheader("General Specifications")
         st.write(f"**Product Type:** {row.get('Product_type', '-')}")
-        st.write(f"**Size Category:** {row.get('Ukuran Produk', '-')}")
-        st.write(f"**Weight Category:** {row.get('Berat Produk', '-')}")
+        st.write(f"**Aisle Width:** :orange[**{aisle_w} mm**]")
         st.write(f"**Power Source:** {row.get('Power Source', '-')}")
-        st.write(f"**Net Weight:** {row.get('Net Weight (kg)', '-')} Kg")
         
     with col2:
-        st.subheader("Dimensions (Measures)")
-        st.write(f"**Length (L):** {row.get('Measures_L', '-')} mm")
-        st.write(f"**Width (W):** {row.get('Measures_W', '-')} mm")
-        st.write(f"**Height (H):** {row.get('Measures_H', '-')} mm")
+        st.subheader("Dimensions & Weight")
+        st.write(f"**Size Category:** {row.get('Ukuran Produk', '-')}")
+        st.write(f"**Net Weight:** {row.get('Net Weight (kg)', '-')} Kg")
+        st.write(f"**Dimensions (L/W/H):** {row.get('Measures_L','-')}/{row.get('Measures_W','-')}/{row.get('Measures_H','-')} mm")
 
     st.markdown("---")
     
@@ -123,47 +118,22 @@ def show_detail(row):
     
     if os.path.exists(found_path):
         col_dl, col_wa, col_email = st.columns(3) 
-        
         with col_dl:
             with open(found_path, "rb") as pdf_file:
-                st.download_button(
-                    label="📄 Download Brochure",
-                    data=pdf_file,
-                    file_name=f"{spec_name}.pdf",
-                    mime="application/pdf",
-                    key=f"dl_{spec_name}"
-                )
+                st.download_button(label="📄 Download Brochure", data=pdf_file, file_name=f"{spec_name}.pdf", mime="application/pdf")
 
-        # Generating Share Message
         public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
-        raw_message = (
-            f"I'm interested in this product:\n\n"
-            f"Brand: {brand}\n"
-            f"Model: {model}\n\n"
-            f"Click the link below to download the brochure:\n{public_url}"
+        share_msg = (
+            f"Product Info: {brand} - {model}\n"
+            f"Download Brochure: {public_url}"
         )
         
         with col_wa:
-            encoded_wa = urllib.parse.quote(raw_message)
-            whatsapp_url = f"https://wa.me/?text={encoded_wa}"
-            st.markdown(f"""
-                <a href="{whatsapp_url}" target="_blank" style="text-decoration: none;">
-                    <div class="custom-button wa-button">📲 Share to WhatsApp</div>
-                </a>
-                """, unsafe_allow_html=True)
-
+            st.markdown(f'<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" class="custom-button wa-button">📲 WhatsApp</a>', unsafe_allow_html=True)
         with col_email:
-            # Share to Email Logic
-            subject = urllib.parse.quote(f"Product Information: {brand} - {model}")
-            body = urllib.parse.quote(raw_message)
-            email_url = f"mailto:?subject={subject}&body={body}"
-            st.markdown(f"""
-                <a href="{email_url}" target="_blank" style="text-decoration: none;">
-                    <div class="custom-button email-button">📧 Share to Email</div>
-                </a>
-                """, unsafe_allow_html=True)
+            st.markdown(f'<a href="mailto:?subject=Product Info&body={urllib.parse.quote(share_msg)}" target="_blank" class="custom-button email-button">📧 Email</a>', unsafe_allow_html=True)
     else:
-        st.info("Digital brochure is not yet available for this product.")
+        st.info("Digital brochure is not yet available.")
     
     st.markdown("---")
     st.caption("Use the 'X' icon at the top right to close details.")
@@ -183,9 +153,6 @@ def main():
             return sorted([i for i in all_items.unique() if i])
         return []
 
-    unique_locations = get_uniques('Processed_Locations')
-    unique_floors = get_uniques('Floor_Type_List')
-
     # --- SIDEBAR FILTERS ---
     st.sidebar.header("🎛️ Search Filters")
     if st.sidebar.button("🔄 Reset Filters"):
@@ -195,93 +162,84 @@ def main():
 
     pilihan_produk = st.sidebar.radio(
         "Brand / Category", 
-        ["All", "Manual (Fiorentini)", "Autonomous (Gausium)"], 
+        ["All", "Manual (Fiorentini)", "Autonomous (Gausium)"],
         index=["All", "Manual (Fiorentini)", "Autonomous (Gausium)"].index(st.session_state.filter_params.get('pilihan_produk', "All")),
         key=f"radio_{st.session_state.form_key}"
     )
-    
-    types = sorted(df['Product_type'].dropna().unique().tolist())
+
     filter_type = st.sidebar.multiselect(
         "Product Type", 
-        types, 
+        sorted(df['Product_type'].dropna().unique().tolist()), 
         default=st.session_state.filter_params.get('filter_type', []),
         key=f"type_{st.session_state.form_key}"
     )
     
     filter_loc = st.sidebar.multiselect(
         "Application Location", 
-        unique_locations, 
+        get_uniques('Processed_Locations'), 
         default=st.session_state.filter_params.get('filter_loc', []),
         key=f"loc_{st.session_state.form_key}"
-    ) 
+    )
+
+    # POSISI BARU: AISLE CATEGORY DI BAWAH APPLICATION LOCATION
+    aisle_categories = get_uniques('Aisle Category')
+    filter_aisle_cat = st.sidebar.multiselect(
+        "Aisle Category", 
+        aisle_categories,
+        default=st.session_state.filter_params.get('filter_aisle_cat', []),
+        key=f"aisle_cat_{st.session_state.form_key}"
+    )
     
     filter_area = st.sidebar.number_input(
         "Target Area (sqm/h)", 
-        min_value=0, 
-        step=100, 
+        min_value=0, step=100, 
         value=st.session_state.filter_params.get('filter_area', 0),
         key=f"area_{st.session_state.form_key}"
     )
     
-    sizes = sorted(df['Ukuran Produk'].dropna().unique().tolist()) if 'Ukuran Produk' in df.columns else []
-    filter_size = st.sidebar.multiselect(
-        "Product Size", 
-        sizes, 
-        default=st.session_state.filter_params.get('filter_size', []),
-        key=f"size_{st.session_state.form_key}"
-    )
-    
-    weights = sorted(df['Berat Produk'].dropna().unique().tolist()) if 'Berat Produk' in df.columns else []
-    filter_weight = st.sidebar.multiselect(
-        "Product Weight", 
-        weights, 
-        default=st.session_state.filter_params.get('filter_weight', []),
-        key=f"weight_{st.session_state.form_key}"
-    )
-
     filter_floor = st.sidebar.multiselect(
         "Floor Type", 
-        unique_floors, 
+        get_uniques('Floor_Type_List'), 
         default=st.session_state.filter_params.get('filter_floor', []),
         key=f"floor_{st.session_state.form_key}"
     )
 
+    # Simpan ke session state
     st.session_state.filter_params = {
-        'pilihan_produk': pilihan_produk, 
+        'pilihan_produk': pilihan_produk,
+        'filter_aisle_cat': filter_aisle_cat,
         'filter_type': filter_type,
-        'filter_loc': filter_loc, 
+        'filter_loc': filter_loc,
         'filter_area': filter_area,
-        'size': filter_size, 
-        'weight': filter_weight,
-        'floor': filter_floor
+        'filter_floor': filter_floor
     }
 
     # --- FILTERING LOGIC ---
-    params = st.session_state.filter_params
     res = df.copy()
+    params = st.session_state.filter_params
 
     if params['pilihan_produk'] == "Manual (Fiorentini)":
         res = res[res['Brand'].str.contains("Fiorentini", case=False, na=False)]
     elif params['pilihan_produk'] == "Autonomous (Gausium)":
         res = res[res['Brand'].str.contains("Gausium", case=False, na=False)]
         
+    if params['filter_aisle_cat']:
+        res = res[res['Aisle Category'].isin(params['filter_aisle_cat'])]
+
     if params['filter_type']:
         res = res[res['Product_type'].isin(params['filter_type'])]
-        
+
     if params['filter_area'] > 0:
         res['Recommended Coverage Area_min'] = pd.to_numeric(res['Recommended Coverage Area_min'], errors='coerce')
         res['Recommended Coverage Area_max'] = pd.to_numeric(res['Recommended Coverage Area_max'], errors='coerce')
         res = res[(res['Recommended Coverage Area_min'] <= params['filter_area']) & (res['Recommended Coverage Area_max'].fillna(float('inf')) >= params['filter_area'])]
-    
-    if filter_size: res = res[res['Ukuran Produk'].isin(filter_size)]
-    if filter_weight: res = res[res['Berat Produk'].isin(filter_weight)]
 
     if params['filter_loc']:
         pattern = "|".join([re.escape(f) for f in params['filter_loc']])
         res = res[res['Processed_Locations'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
 
-    if filter_floor:
-        pattern = "|".join([re.escape(f) for f in filter_floor])
+    if params['filter_floor']:
+        pattern = "|".join([re.escape(f) for f in params['filter_floor']])
         res = res[res['Floor_Type_List'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
 
     st.divider()
@@ -295,9 +253,7 @@ def main():
                     st.image(get_image_path(row['General Specifications']))
                     st.markdown("<div class='detail-card-content'>", unsafe_allow_html=True)
                     st.markdown(f"**{row['Brand']}**")
-                    model_val = row.get('Model Variations', '-')
-                    st.markdown(f"<small>{model_val}</small>", unsafe_allow_html=True)
-                    st.caption(f"{row['General Specifications']}")
+                    st.markdown(f"<small>{row.get('Model Variations', '-')}</small>", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
                     st.button("View Details", key=f"btn_{index}", on_click=click_detail, args=(row,))
     else:
