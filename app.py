@@ -30,13 +30,13 @@ st.markdown("""
         width: 100%;
         padding-bottom: 10px; 
     }
-    .wa-button {
+    /* Common style for custom buttons */
+    .custom-button {
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
         height: 42px;
-        background-color: #25D366;
         color: white !important;
         text-decoration: none;
         font-weight: 500;
@@ -44,9 +44,13 @@ st.markdown("""
         border: none;
         cursor: pointer;
         font-size: 14px;
-        transition: background-color 0.3s;
+        transition: opacity 0.3s;
     }
-    .wa-button:hover { background-color: #128C7E; color: white !important; }
+    .custom-button:hover { opacity: 0.8; color: white !important; }
+    
+    .wa-button { background-color: #25D366; }
+    .email-button { background-color: #0078D4; } /* Blue for Email */
+    
     .detail-card-content { flex-grow: 1; }
 </style>
 """, unsafe_allow_html=True)
@@ -117,33 +121,46 @@ def show_detail(row):
     found_path = os.path.join("static", "brochures", f"{spec_name}.pdf")
     spec_name_encoded = urllib.parse.quote(spec_name)
     
-    col_dl, col_share = st.columns(2) 
-
     if os.path.exists(found_path):
+        # Membagi menjadi 3 kolom untuk tombol aksi
+        col_dl, col_wa, col_email = st.columns(3) 
+        
         with col_dl:
             with open(found_path, "rb") as pdf_file:
                 st.download_button(
-                    label="📄 Download Brochure (PDF)",
+                    label="📄 Download Brochure",
                     data=pdf_file,
                     file_name=f"{spec_name}.pdf",
                     mime="application/pdf",
                     key=f"dl_{spec_name}"
                 )
 
-        with col_share:
-            public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
-            raw_message = (
-                f"I'm interested in this product:\n\n"
-                f"Brand: {brand}\n"
-                f"Model: {model}\n\n"
-                f"Click the link below to download the brochure:\n{public_url}"
-            )
-            encoded_message = urllib.parse.quote(raw_message)
-            whatsapp_url = f"https://wa.me/?text={encoded_message}"
-            
+        # Persiapan Pesan Share
+        public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
+        raw_message = (
+            f"I'm interested in this product:\n\n"
+            f"Brand: {brand}\n"
+            f"Model: {model}\n\n"
+            f"Click the link below to download the brochure:\n{public_url}"
+        )
+        
+        with col_wa:
+            encoded_wa = urllib.parse.quote(raw_message)
+            whatsapp_url = f"https://wa.me/?text={encoded_wa}"
             st.markdown(f"""
                 <a href="{whatsapp_url}" target="_blank" style="text-decoration: none;">
-                    <div class="wa-button">📲 Share to WhatsApp</div>
+                    <div class="custom-button wa-button">📲 Share to WhatsApp</div>
+                </a>
+                """, unsafe_allow_html=True)
+
+        with col_email:
+            # Logika Share to Email
+            subject = urllib.parse.quote(f"Product Information: {brand} - {model}")
+            body = urllib.parse.quote(raw_message)
+            email_url = f"mailto:?subject={subject}&body={body}"
+            st.markdown(f"""
+                <a href="{email_url}" target="_blank" style="text-decoration: none;">
+                    <div class="custom-button email-button">📧 Share to Email</div>
                 </a>
                 """, unsafe_allow_html=True)
     else:
@@ -170,7 +187,7 @@ def main():
     unique_locations = get_uniques('Processed_Locations')
     unique_floors = get_uniques('Floor_Type_List')
 
-    # --- SIDEBAR FILTERS (LIVE SEARCH VERSION) ---
+    # --- SIDEBAR FILTERS ---
     st.sidebar.header("🎛️ Search Filters")
     if st.sidebar.button("🔄 Reset Filters"):
         handle_reset()
@@ -230,7 +247,6 @@ def main():
         key=f"floor_{st.session_state.form_key}"
     )
 
-    # Save parameters to session_state
     st.session_state.filter_params = {
         'pilihan_produk': pilihan_produk, 
         'filter_type': filter_type,
