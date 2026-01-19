@@ -89,7 +89,7 @@ def get_image_path(filename):
 def show_detail(row):
     brand = row['Brand'] if not pd.isna(row['Brand']) else "-"
     model = row['Model Variations'] if not pd.isna(row['Model Variations']) else "-"
-    aisle_w = row.get('Aisle width', '-')
+    aisle_w = row.get('Aisle Width (mm)', '-')
     aisle_c = row.get('Aisle Category', '-')
 
     st.header(f"{brand} - {model}")
@@ -101,7 +101,7 @@ def show_detail(row):
     with col1:
         st.subheader("General Specifications")
         st.write(f"**Product Type:** {row.get('Product_type', '-')}")
-        st.write(f"**Min. Aisle Width:** :orange[**{aisle_w} mm**]")
+        st.write(f"**Aisle Width:** :orange[**{aisle_w} mm**]")
         st.write(f"**Power Source:** {row.get('Power Source', '-')}")
         
     with col2:
