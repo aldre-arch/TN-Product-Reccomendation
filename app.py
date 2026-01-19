@@ -8,7 +8,7 @@ import urllib.parse
 st.set_page_config(page_title="Product Recommendation Library", layout="wide")
 
 # --- GITHUB RAW URL CONFIGURATION ---
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Library/main/"
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
 
 # --- CUSTOM CSS ---
 st.markdown("""
