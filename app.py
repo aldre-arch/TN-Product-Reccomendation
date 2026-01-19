@@ -7,8 +7,8 @@ import urllib.parse
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="Product Recommendation Library", layout="wide")
 
-# --- GITHUB RAW URL CONFIGURATION ---
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/static/brochures/"
+# --- GITHUB RAW URL CONFIGURATION (UPDATED TO CORRECT REPO NAME) ---
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/aldre-arch/TN-Product-Reccomendation/main/"
 
 # --- CUSTOM CSS ---
 st.markdown("""
@@ -122,7 +122,6 @@ def show_detail(row):
     spec_name_encoded = urllib.parse.quote(spec_name)
     
     if os.path.exists(found_path):
-        # Membagi menjadi 3 kolom untuk tombol aksi
         col_dl, col_wa, col_email = st.columns(3) 
         
         with col_dl:
@@ -135,9 +134,10 @@ def show_detail(row):
                     key=f"dl_{spec_name}"
                 )
 
-        # Persiapan Pesan Share
+        # Generating Share Message
         public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
         raw_message = (
+            f"I'm interested in this product:\n\n"
             f"Brand: {brand}\n"
             f"Model: {model}\n\n"
             f"Click the link below to download the brochure:\n{public_url}"
@@ -153,7 +153,7 @@ def show_detail(row):
                 """, unsafe_allow_html=True)
 
         with col_email:
-            # Logika Share to Email
+            # Share to Email Logic
             subject = urllib.parse.quote(f"Product Information: {brand} - {model}")
             body = urllib.parse.quote(raw_message)
             email_url = f"mailto:?subject={subject}&body={body}"
@@ -251,9 +251,9 @@ def main():
         'filter_type': filter_type,
         'filter_loc': filter_loc, 
         'filter_area': filter_area,
-        'filter_size': filter_size, 
-        'filter_weight': filter_weight,
-        'filter_floor': filter_floor
+        'size': filter_size, 
+        'weight': filter_weight,
+        'floor': filter_floor
     }
 
     # --- FILTERING LOGIC ---
@@ -273,15 +273,15 @@ def main():
         res['Recommended Coverage Area_max'] = pd.to_numeric(res['Recommended Coverage Area_max'], errors='coerce')
         res = res[(res['Recommended Coverage Area_min'] <= params['filter_area']) & (res['Recommended Coverage Area_max'].fillna(float('inf')) >= params['filter_area'])]
     
-    if params['filter_size']: res = res[res['Ukuran Produk'].isin(params['filter_size'])]
-    if params['filter_weight']: res = res[res['Berat Produk'].isin(params['filter_weight'])]
+    if filter_size: res = res[res['Ukuran Produk'].isin(filter_size)]
+    if filter_weight: res = res[res['Berat Produk'].isin(filter_weight)]
 
     if params['filter_loc']:
         pattern = "|".join([re.escape(f) for f in params['filter_loc']])
         res = res[res['Processed_Locations'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
 
-    if params['filter_floor']:
-        pattern = "|".join([re.escape(f) for f in params['filter_floor']])
+    if filter_floor:
+        pattern = "|".join([re.escape(f) for f in filter_floor])
         res = res[res['Floor_Type_List'].astype(str).str.contains(pattern, flags=re.IGNORECASE, na=False)]
 
     st.divider()
