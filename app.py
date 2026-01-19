@@ -160,24 +160,13 @@ def main():
         st.session_state.form_key += 1
         st.rerun()
 
-    # Brand Filter
     pilihan_produk = st.sidebar.radio(
         "Brand / Category", 
         ["All", "Manual (Fiorentini)", "Autonomous (Gausium)"],
         index=["All", "Manual (Fiorentini)", "Autonomous (Gausium)"].index(st.session_state.filter_params.get('pilihan_produk', "All")),
         key=f"radio_{st.session_state.form_key}"
     )
-    
-    # Aisle Category Filter (New)
-    aisle_categories = get_uniques('Aisle Category')
-    filter_aisle_cat = st.sidebar.multiselect(
-        "Aisle Width Category", 
-        aisle_categories,
-        default=st.session_state.filter_params.get('filter_aisle_cat', []),
-        key=f"aisle_cat_{st.session_state.form_key}"
-    )
-    
-    # Existing Filters
+
     filter_type = st.sidebar.multiselect(
         "Product Type", 
         sorted(df['Product_type'].dropna().unique().tolist()), 
@@ -190,7 +179,16 @@ def main():
         get_uniques('Processed_Locations'), 
         default=st.session_state.filter_params.get('filter_loc', []),
         key=f"loc_{st.session_state.form_key}"
-    ) 
+    )
+
+    # POSISI BARU: AISLE CATEGORY DI BAWAH APPLICATION LOCATION
+    aisle_categories = get_uniques('Aisle Category')
+    filter_aisle_cat = st.sidebar.multiselect(
+        "Aisle Category", 
+        aisle_categories,
+        default=st.session_state.filter_params.get('filter_aisle_cat', []),
+        key=f"aisle_cat_{st.session_state.form_key}"
+    )
     
     filter_area = st.sidebar.number_input(
         "Target Area (sqm/h)", 
@@ -206,7 +204,7 @@ def main():
         key=f"floor_{st.session_state.form_key}"
     )
 
-    # Save to session state
+    # Simpan ke session state
     st.session_state.filter_params = {
         'pilihan_produk': pilihan_produk,
         'filter_aisle_cat': filter_aisle_cat,
