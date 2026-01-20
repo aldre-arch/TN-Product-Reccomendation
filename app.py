@@ -191,13 +191,13 @@ def main():
         key=f"aisle_cat_{st.session_state.form_key}"
     )
 
-    # 2. MAX SLOPE (UBAH KE MAKSIMAL)
+    # 2. MAX SLOPE (KEMBALI KE MINIMAL KAPASITAS)
     filter_slope = st.sidebar.number_input(
-        "Max.Slope (°)", # Label diperbarui
+        "Max.Slope (°)", 
         min_value=0, 
         step=1, 
         value=st.session_state.filter_params.get('filter_slope', 0),
-        help="Hanya tampilkan produk dengan kemampuan menanjak maksimal X derajat.",
+        help="Cari produk yang mampu menanjak minimal X derajat.",
         key=f"slope_{st.session_state.form_key}"
     )
     
@@ -240,10 +240,10 @@ def main():
     if params['filter_aisle_cat']:
         res = res[res['Aisle Category'].isin(params['filter_aisle_cat'])]
 
-    # LOGIKA BARU: Filter Max Slope (Menampilkan yang <= input user)
+    # LOGIKA: Filter Max Slope (Menampilkan yang >= input user)
     if params['filter_slope'] > 0:
         res['temp_slope'] = pd.to_numeric(res['Max.Slope (°)'], errors='coerce').fillna(0)
-        res = res[res['temp_slope'] <= params['filter_slope']]
+        res = res[res['temp_slope'] >= params['filter_slope']]
 
     # Filter Type
     if params['filter_type']:
@@ -280,7 +280,7 @@ def main():
                     st.markdown("</div>", unsafe_allow_html=True)
                     st.button("View Details", key=f"btn_{index}", on_click=click_detail, args=(row,))
     else:
-        st.warning("No products match these filters.")
+        st.warning("No products match ini filters.")
             
     if st.session_state.show_dialog and st.session_state.detail_row is not None:
         show_detail(st.session_state.detail_row)
