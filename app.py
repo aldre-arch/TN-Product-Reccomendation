@@ -89,7 +89,7 @@ def get_image_path(filename):
 def show_detail(row):
     brand = row['Brand'] if not pd.isna(row['Brand']) else "-"
     model = row['Model Variations'] if not pd.isna(row['Model Variations']) else "-"
-    aisle_w = row.get('Aisle width', '-')
+    aisle_w = row.get('Aisle Width (mm)', '-')
     slope_val = row.get('Max.Slope (°)', '-')
 
     st.header(f"{brand} - {model}")
