@@ -10,20 +10,16 @@ from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
 
 
-# --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="Product Recommendation Library", layout="wide")
 
-# --- USER DATABASE CONNECTION (GOOGLE SHEETS) ---
 try:
     conn = st.connection("userdbgsheets", type=GSheetsConnection)
 except Exception as e:
     st.error("Konfigurasi Secrets Google Sheets belum lengkap.")
     st.stop()
 
-# --- GITHUB RAW URL CONFIGURATION ---
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/projectbusdev-tech/Busdev-Product-Library/main/"
 
-# --- CUSTOM CSS ---
 st.markdown("""
 <style>
     .stButton button, .stDownloadButton button {
@@ -65,7 +61,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CREDENTIALS & USER DATABASE (GSHEETS) ---
 ADMIN_USERNAME = st.secrets["admin_credentials"]["username"]
 ADMIN_PASSWORD = st.secrets["admin_credentials"]["password"]
 
@@ -75,7 +70,6 @@ ADMIN_USERS = {
 
 HISTORY_FILE = "login_history.csv"
 
-# --- DATABASE FUNCTIONS ---
 def load_gsheet_data(worksheet_name):
     """Membaca data dari tab tertentu di Google Sheets."""
     try:
@@ -85,8 +79,6 @@ def load_gsheet_data(worksheet_name):
 
 def log_activity_to_gsheet(username, brand, model, record_type):
     try:
-        # Nama worksheet tetap "DownloadHistory" agar tidak perlu ganti konfigurasi, 
-        # tapi isinya kita perluas.
         history_df = load_gsheet_data("DownloadHistory")
         wib_now = datetime.now() + timedelta(hours=7)
         
@@ -105,7 +97,6 @@ def log_activity_to_gsheet(username, brand, model, record_type):
 
 def log_filter_to_gsheet(username, filters):
     try:
-        # Mengambil data lama dari sheet FilterLogs
         history_df = load_gsheet_data("FilterLogs")
         wib_now = datetime.now() + timedelta(hours=7)
         timestamp = wib_now.strftime("%Y-%m-%d %H:%M:%S")
@@ -150,14 +141,11 @@ def log_filter_to_gsheet(username, filters):
 def clear_gsheet_content(sheet_name):
     """Menghapus data di worksheet dengan menyisakan header saja."""
     try:
-        # Buat DataFrame kosong dengan kolom yang sesuai
         if sheet_name == "LoginHistory":
             empty_df = pd.DataFrame(columns=["Username", "Role", "Timestamp", "Status"])
         else:
-            # Sesuaikan untuk sheet lain jika perlu
             return False
 
-        # Update sheet tersebut dengan DF kosong (hanya header)
         conn.update(worksheet=sheet_name, data=empty_df)
         return True
     except Exception as e:
@@ -166,14 +154,11 @@ def clear_gsheet_content(sheet_name):
 
 def load_registered_users():
     try:
-        # Membaca sheet Registered_Users
         df = conn.read(worksheet="UserAccount", ttl=0)
 
-        # Memastikan Username dan Password selalu terbaca sebagai teks/string
         df['Username'] = df['Username'].astype(str).str.strip()
         df['Password'] = df['Password'].astype(str).str.strip()
         
-        # Jika kolom Status belum ada, buat dan isi dengan Active (untuk legacy user)
         if 'ApprovalStatus' not in df.columns:
             df['ApprovalStatus'] = 'Active'
         else:
@@ -189,7 +174,6 @@ def load_registered_users():
         return pd.DataFrame(columns=["Username", "Password", "Role", "Verified", "ApprovalStatus"])
         
 def update_user_gsheet(updated_df):
-    """Fungsi pembantu untuk menyimpan perubahan ke Google Sheets"""
     try:
         conn.update(worksheet="UserAccount", data=updated_df)
         return True
@@ -203,7 +187,6 @@ def save_new_user(email, password):
     if email in users_df['Username'].values:
         return False, "Email sudah terdaftar."
     
-    # User baru otomatis berstatus Pending
     new_user = pd.DataFrame([[email, password, "User", True, "Pending"]], columns=["Username", "Password", "Role", "Verified", "ApprovalStatus"])
     updated_df = pd.concat([users_df, new_user], ignore_index=True)
     
@@ -214,19 +197,16 @@ def save_new_user(email, password):
         return False, f"Gagal menyimpan data: {e}"
 
 def delete_user_gsheet(email_to_delete):
-    """Menghapus user dari Google Sheets."""
     users_df = load_registered_users()
     updated_df = users_df[users_df['Username'] != email_to_delete]
     conn.update(data=updated_df)
     return True
 
-# --- ADMIN APPROVAL PAGE ---
 def show_admin_approval_page():
     st.title("🛡️ User Approval Management")
     st.info("Halaman ini digunakan untuk menyetujui akses user baru.")
     
     users_df = load_registered_users()
-    # Filter hanya yang berstatus Pending
     pending_users = users_df[users_df['ApprovalStatus'].str.lower() == 'pending']
     
     if pending_users.empty:
@@ -246,26 +226,21 @@ def show_admin_approval_page():
                         st.rerun()
 
                 with col3:
-                    # Tombol REJECT (Menghapus Data)
                     if st.button("Reject ❌", key=f"reject_{index}", type="secondary"):
-                        # Menghapus baris berdasarkan index
                         users_df = users_df.drop(index)
                         
-                        # Update Google Sheets dengan dataframe yang sudah dikurangi barisnya
                         if update_user_gsheet(users_df):
                             st.warning(f"Permintaan {row['Username']} telah ditolak dan dihapus.")
                             time.sleep(1)
                             st.rerun()
 
 def validate_password(password):
-    """Memastikan password minimal 6 karakter, mengandung huruf dan angka."""
     if len(password) < 6:
         return False, "Password minimal harus 6 karakter."
     if not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
         return False, "Password harus mengandung kombinasi huruf dan angka."
     return True, ""
 
-# --- DIALOG SIGN UP ---
 @st.dialog("Sign Up")
 def signup_dialog():
     st.write("Daftarkan akun baru Anda.")
@@ -304,7 +279,6 @@ def signup_dialog():
                 time.sleep(1)
                 st.rerun()
                 
-# --- DIALOG CHANGE PASSWORD ---
 
 @st.dialog("Change Password")
 def change_password_dialog():
@@ -320,7 +294,6 @@ def change_password_dialog():
             return
 
         users_df = load_registered_users()
-        # Mencocokkan data
         mask = (users_df['Username'] == email_input) & (users_df['Password'] == old_password)
         
         if not users_df[mask].empty:
@@ -344,12 +317,9 @@ def change_password_dialog():
 
 def convert_df_to_excel(df):
     output = io.BytesIO()
-    # Menggunakan engine xlsxwriter agar lebih cepat dan ringan
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='UserAccount')
     return output.getvalue()
-
-# --- PAGES ---
 
 def show_product_analytics_page():
     st.title("📊 Product Analytics")
@@ -359,20 +329,15 @@ def show_product_analytics_page():
         st.info("Belum ada data aktivitas.")
         return
 
-    # LOGIKA PRIVASI DATA (USER-SPECIFIC)
-    # Jika role bukan Admin, filter data agar hanya menampilkan milik username yang sedang login
     if st.session_state.role != "Admin":
-        # Menggunakan str.lower() untuk memastikan perbandingan tidak sensitif huruf kapital
         history_df = history_df[history_df['Username'].str.lower() == st.session_state.username.lower()]
 
-    # 2. Cek kembali apakah data ada setelah difilter
     if history_df.empty:
         st.info("Anda belum memiliki riwayat aktivitas produk untuk dianalisis.")
         return
 
     history_df['Timestamp'] = pd.to_datetime(history_df['Timestamp'])
     
-    # Filter Role
     if st.session_state.role != "Admin":
         history_df = history_df[history_df['Username'] == st.session_state.username]
 
@@ -380,16 +345,13 @@ def show_product_analytics_page():
     c_f1, c_f2 = st.columns([2, 1])
     
     with c_f1:
-        # 1. Filter Tanggal
         min_d, max_d = history_df['Timestamp'].min().date(), history_df['Timestamp'].max().date()
         date_range = st.date_input("Rentang Tanggal:", value=(min_d, max_d))
         
     with c_f2:
-        # 2. Filter Jenis Aktivitas
         activity_options = ["All Activities", "Download", "WhatsApp", "Email"]
         selected_activity = st.selectbox("Jenis Aktivitas (untuk Grafik):", activity_options)
 
-    # Logika Filter Tanggal
     if isinstance(date_range, tuple) and len(date_range) == 2:
         mask = (history_df['Timestamp'].dt.date >= date_range[0]) & (history_df['Timestamp'].dt.date <= date_range[1])
         df_filtered = history_df.loc[mask]
@@ -397,16 +359,13 @@ def show_product_analytics_page():
         df_filtered = history_df
 
     if not df_filtered.empty:
-        # --- METRICS CARD (Kombinasi Count untuk Top Brand/Model) ---
         st.divider()
         m1, m2, m3, m4, m5 = st.columns(5)
         
-        # Hitung untuk Card khusus
         total_dl = len(df_filtered[df_filtered['RecordType'] == 'Download'])
         total_wa = len(df_filtered[df_filtered['RecordType'] == 'WhatsApp'])
         total_em = len(df_filtered[df_filtered['RecordType'] == 'Email'])
         
-        # Hitung Top (berdasarkan kombinasi semua aktivitas di range tgl tersebut)
         top_brand_df = df_filtered['Brand'].str.upper().value_counts().reset_index()
         top_model_df = df_filtered['Model'].value_counts().reset_index()
         
@@ -422,10 +381,8 @@ def show_product_analytics_page():
         with m4: custom_metric("Top Brand (All)", b_name, f"{max_b} acts")
         with m5: custom_metric("Top Model (All)", m_name, f"{max_m} acts")
 
-       # --- VISUALISASI (Berdasarkan Filter Aktivitas) ---
         st.write(f"### 📈 Charts: {selected_activity} Per Brand & Model")
 
-        # Filter data khusus untuk grafik
         if selected_activity != "All Activities":
             df_chart = df_filtered[df_filtered['RecordType'] == selected_activity]
         else:
@@ -447,14 +404,13 @@ def show_product_analytics_page():
                 'displayModeBar': True
             }
 
-            # --- CHART 1: BRAND (POSISI ATAS) ---
             st.subheader("Total Activities by Brand")
             max_b = chart_brand['count'].max()
 
             fig_b = px.bar(chart_brand, x='Brand', y='count', color='Brand', color_discrete_map=color_map, text='count')
 
             fig_b.update_layout(
-                height=500, # Tinggi disesuaikan agar tidak terlalu memakan ruang saat vertikal
+                height=500, 
                 showlegend=False, 
                 yaxis_title="Total Activities",
                 yaxis=dict(range=[0, max_b * 1.2], tickfont=dict(size=14)), 
@@ -470,12 +426,9 @@ def show_product_analytics_page():
 
             st.plotly_chart(fig_b, use_container_width=True, config=plotly_config)
 
-            # Pemisah visual antara chart atas dan bawah
             st.divider()
 
-            # --- CHART 2: MODEL (POSISI BAWAH) ---
             st.subheader("Top 10 Models")
-            # Untuk chart horizontal, kita gunakan max_x untuk padding kanan
             max_m = chart_model.head(10)['count'].max()
 
             fig_m = px.bar(chart_model.head(10), x='count', y='Model', orientation='h', text='count', color_discrete_sequence=['#2ECC71'])
@@ -499,20 +452,16 @@ def show_product_analytics_page():
         else:
             st.warning(f"Tidak ada data untuk kategori {selected_activity}")
 
-    # --- TABEL DETAIL & EXPORT ---
     st.divider()
     st.subheader("📄 Activity Logs")
     
-    # Menyiapkan DataFrame untuk tampilan dan export
     df_display = df_filtered[["Timestamp", "Username", "Brand", "Model", "RecordType"]].iloc[::-1]
     
     st.dataframe(df_display, use_container_width=True)
     
-    # --- TOMBOL EXPORT BERDAMPINGAN ---
     col_ex1, col_ex2, _ = st.columns([1, 1, 3])
     
     with col_ex1:
-        # Tombol Export CSV
         csv = df_display.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Export to CSV",
@@ -522,7 +471,6 @@ def show_product_analytics_page():
         )
 
     with col_ex2:
-        # Tombol Export Excel
         excel_data = convert_df_to_excel(df_display)
         st.download_button(
             label="📊 Export to Excel",
@@ -531,18 +479,13 @@ def show_product_analytics_page():
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
 
-# --- HISTORY LOGIC ---
 def log_login(username, role, status="Success"):
     try:
-        # 1. Ambil data lama dari sheet LoginHistory
         history_df = load_gsheet_data("LoginHistory")
         
-        # 2. Ambil waktu sekarang (WIB)
         wib_now = datetime.now() + timedelta(hours=7) 
         now_str = wib_now.strftime("%Y-%m-%d %H:%M:%S")
         
-        # 3. Buat baris baru dalam bentuk DataFrame
-        # Sesuaikan urutan kolom: Username, Role, Timestamp, Status
         new_entry = pd.DataFrame([[
             username, 
             role, 
@@ -550,14 +493,12 @@ def log_login(username, role, status="Success"):
             status
         ]], columns=["Username", "Role", "Timestamp", "Status"])
         
-        # 4. Gabungkan data lama dan baru
         if not history_df.empty:
             updated_df = pd.concat([history_df, new_entry], ignore_index=True)
         else:
             updated_df = new_entry
             
-        # 5. Update ke Google Sheets
-        conn.update(worksheet="LoginHistory", data=updated_df)
+         conn.update(worksheet="LoginHistory", data=updated_df)
         
     except Exception as e:
         st.error(f"Gagal mencatat log login ke GSheet: {e}")
@@ -565,15 +506,12 @@ def log_login(username, role, status="Success"):
 def show_history_page():
     st.title("📜 Login History")
     
-    # Ambil data dari GSheet
     history_df = load_gsheet_data("LoginHistory")
     
     if not history_df.empty:
-        # Tampilkan Tabel (Data terbaru di atas)
         df_display = history_df.iloc[::-1]
         st.dataframe(df_display, use_container_width=True)
         
-        # Baris Tombol Aksi
         col_ex1, col_ex2, col_clear = st.columns([1, 1, 2])
         
         with col_ex1:
@@ -584,10 +522,8 @@ def show_history_page():
             excel_data = convert_df_to_excel(df_display)
             st.download_button("📊 Export Excel", excel_data, "login_logs.xlsx")
 
-        # LOGIKA TOMBOL CLEAR
         with col_clear:
             if st.session_state.role == "Admin":
-                # Gunakan popover atau warning agar tidak tidak sengaja terhapus
                 if st.button("🗑️ Clear All History", type="secondary", help="Hapus semua data di GSheet"):
                     status = clear_gsheet_content("LoginHistory")
                     if status:
@@ -603,13 +539,11 @@ def login_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("login_form"):
-            # Tambahkan .strip() untuk membersihkan spasi tak sengaja
             username = st.text_input("Username / Email").strip()
             password = st.text_input("Password", type="password").strip()
             submit = st.form_submit_button("Login")
             
             if submit:
-                # Cek Admin Hardcoded
                 if username in ADMIN_USERS and ADMIN_USERS[username]["password"] == password:
                     st.session_state.logged_in = True
                     st.session_state.username = username
@@ -617,22 +551,18 @@ def login_screen():
                     log_login(username, st.session_state.role)
                     st.rerun()
                 
-                # Cek Database Google Sheets
                 else:
                     users_df = load_registered_users()
-                    # Perbandingan dilakukan dengan memastikan kedua belah pihak adalah string
                     match = users_df[(users_df['Username'] == username) & (users_df['Password'] == password)]
                     
                     if not match.empty:
                         user_status = match.iloc[0]['ApprovalStatus']
                         
-                        # --- PENGECEKAN STATUS APPROVAL ---
                         if user_status == "Pending":
                             st.warning("⚠️ Akun Anda sedang menunggu persetujuan Admin. Silakan hubungi Admin untuk aktivasi.")
                         elif user_status == "Active":
                             st.session_state.logged_in = True
                             st.session_state.username = username
-                            # Pastikan kolom 'Role' ada di sheet Anda, jika tidak ada bisa default ke 'User'
                             st.session_state.role = match.iloc[0]['Role'] if 'Role' in match.columns else "User"
                             log_login(username, st.session_state.role)
                             st.rerun()
@@ -650,15 +580,10 @@ def login_screen():
 
 def load_registered_users():
     try:
-        # Membaca sheet UserAccount
         df = conn.read(worksheet="UserAccount", ttl=0)
-        
-        # --- PERBAIKAN UNTUK LOGIN (Muhammad Sina & Password Angka) ---
-        # Memastikan Username dan Password selalu terbaca sebagai teks/string
         df['Username'] = df['Username'].astype(str).str.strip()
         df['Password'] = df['Password'].astype(str).str.strip()
         
-        # Inisialisasi kolom jika belum ada
         if 'ApprovalStatus' not in df.columns:
             df['ApprovalStatus'] = 'Active'
         else:
@@ -687,30 +612,25 @@ def show_user_management_page():
     st.title("👥 User Management & Role Control")
     st.write("Kelola hak akses akun user di sini.")
     
-    # 1. Identifikasi Super Admin dari Secrets
     try:
         super_admin_username = st.secrets["admin_credentials"]["username"]
     except Exception:
         super_admin_username = None
     
-    # Load data terbaru dari Google Sheets
     users_df = load_registered_users()
 
     if not users_df.empty:
-        # --- FITUR LIVE SEARCH ---
         search_query = st.text_input(
             "🔍 Live Search User", 
             placeholder="Ketik email untuk mencari...",
             help="Daftar akan terfilter otomatis saat Anda mengetik."
         ).strip().lower()
 
-        # Filter data berdasarkan search bar
         if search_query:
             filtered_df = users_df[users_df['Username'].str.lower().str.contains(search_query, na=False)]
         else:
             filtered_df = users_df
 
-        # Header Tabel
         h1, h2, h3, h4, h5 = st.columns([2, 1.5, 1.5, 1, 1])
         h1.write("**Email**")
         h2.write("**Role Access**")
@@ -719,16 +639,13 @@ def show_user_management_page():
         h5.write("**Delete**")
         st.divider()
 
-        # Loop menggunakan filtered_df hasil pencarian
         if not filtered_df.empty:
             for index, row in filtered_df.iterrows():
                 email_user = row['Username']
                 
-                # LOGIKA PROTEKSI
                 is_super_admin = (email_user == super_admin_username)
                 is_self = (email_user == st.session_state.username)
                 
-                # is_protected: Untuk mengunci Role & Status (Super Admin & Diri Sendiri)
                 is_protected = is_super_admin or is_self
                 
                 col1, col2, col3, col4, col5 = st.columns([2, 1.5, 1.5, 1, 1])
@@ -765,7 +682,6 @@ def show_user_management_page():
                     )
 
                 with col4:
-                    # Tombol Save: Hanya muncul jika bukan akun terproteksi
                     if not is_protected:
                         if st.button("💾 Save", key=f"save_{email_user}"):
                             users_df.at[index, 'Role'] = new_role
@@ -778,7 +694,6 @@ def show_user_management_page():
                         st.write("🔒 *Locked*")
 
                 with col5:
-                    # Tombol Delete: Hanya muncul jika bukan Super Admin DAN bukan diri sendiri
                     if not is_protected:
                         if st.button("🗑️", key=f"del_{email_user}", help="Hapus user permanen"):
                             delete_user_gsheet(email_user)
@@ -786,7 +701,6 @@ def show_user_management_page():
                             time.sleep(1)
                             st.rerun()
                     else:
-                        # Keterangan tambahan agar jelas mengapa tidak ada tombol hapus
                         st.write("---")
 
                 st.write("---")
@@ -794,8 +708,7 @@ def show_user_management_page():
             st.warning(f"Tidak ada user yang cocok dengan '{search_query}'.")
     else:
         st.info("Belum ada user yang terdaftar di database.")
-
-# --- HELPER FUNCTIONS ---
+        
 def custom_metric(label, value, sub_value):
     st.markdown(f"""
         <div style="
@@ -829,7 +742,6 @@ def clean_list_string(val):
     if pd.isna(val) or str(val).lower() == 'nan': return "-"
     return str(val).replace("[", "").replace("]", "").replace("'", "").strip()
 
-# --- HANDLER LOGIC ---
 def handle_reset():
     st.session_state.show_dialog = False
     st.session_state.show_compare = False
@@ -841,22 +753,17 @@ def click_detail(row):
     st.session_state.show_dialog = True
     st.session_state.show_compare = False
 
-# --- LOAD DATA FUNCTION ---
 @st.cache_data(ttl=3600)
 def load_data():
-    # Panggil koneksi khusus untuk data produk
     conn_prod = st.connection("productdatagsheets", type=GSheetsConnection)
     
-    # Membaca data dari worksheet ProductDataMain
     df = conn_prod.read(worksheet="ProductDataMain", ttl=3600)
     
-    # Pembersihan data
     df.columns = df.columns.str.strip() 
     if 'Product_type' in df.columns:
         df['Product_type'] = df['Product_type'].astype(str).str.strip()
     return df
 
-# --- IMAGE CHECKER FUNCTION ---
 def get_image_path(filename):
     if pd.isna(filename):
         return "https://via.placeholder.com/300x200?text=No+Image"
@@ -867,7 +774,6 @@ def get_image_path(filename):
             return os.path.join(base_path, clean_name + ext)
     return "https://via.placeholder.com/300x200?text=No+Image"
 
-# --- PRODUCT COMPARISON POPUP ---
 @st.dialog("Compare Product", width="large")
 def show_comparison(base_row, full_df):
     st.write(f"Comparing: **{base_row['Brand']} - {base_row['Model Variations']}**")
@@ -939,13 +845,11 @@ def handle_share_logging(username, brand, model, record_type):
     """Callback khusus untuk memastikan logging selesai sebelum aksi browser."""
     try:
         log_activity_to_gsheet(username, brand, model, record_type)
-        # Session state ini hanya untuk membantu UI jika diperlukan
         st.session_state[f"logged_{record_type}"] = True
     except Exception as e:
         print(f"Error logging {record_type}: {e}")
 
 
-# --- PRODUCT DETAIL POPUP ---
 @st.dialog("Product Details", width="large")
 def show_detail(row, full_df):
     brand = row['Brand'] if not pd.isna(row['Brand']) else "-"
@@ -966,29 +870,18 @@ def show_detail(row, full_df):
     recovery_tank = clean_list_string(row.get('Recovery_Tank_Capacity'))
     waste_tank = clean_list_string(row.get('Waste_Tank_Capacity'))
 
-    # --- LOGIKA PEMBERSIHAN TOTAL ---
     raw_val = row.get('Video_Link')
-    
-    # 1. Pastikan bukan NaN dan ubah ke string
+
     video_url = str(raw_val).strip() if pd.notna(raw_val) else ""
-    
-    # 2. Cek apakah isinya benar-benar link yang valid
+
     if video_url in ["-", "nan", "NaN", "None", ""]:
         has_video = False
     else:
-        # 3. Pastikan diawali dengan protokol http agar tidak error
         if not video_url.startswith(('http://', 'https://')):
-            # Jika user lupa input https://, kita tambahkan secara otomatis
             video_url = f"https://{video_url}"
         
-        # Anggap valid jika setidaknya ada titik (.) sebagai ciri domain/URL
         has_video = "." in video_url
 
-    # --- DEBUGGING (PENTING) ---
-    # Jika masih tidak muncul, aktifkan baris di bawah ini untuk melihat apa yang dibaca Python
-    # st.write(f"DEBUG - Nilai Asli: '{raw_val}' | Hasil Bersih: '{video_url}' | Status: {has_video}")
-
-    # Judul dan Tombol Compare
     col_title, col_comp = st.columns([3, 1])
     with col_title:
         st.header(f"{brand} - {model}")
@@ -1029,7 +922,6 @@ def show_detail(row, full_df):
         st.write(f"**Sensing System :** {sensing_list}")
         st.write(f"**Feature :** {feature_list}")
         
-        # Area Video
         st.subheader("Video")
         if has_video:
             st.link_button("🎥 Watch Video Demo", video_url, use_container_width=True)
@@ -1045,7 +937,6 @@ def show_detail(row, full_df):
     if os.path.exists(found_path):
         col_dl, col_wa, col_email = st.columns(3) 
         
-        # --- LOGIKA DOWNLOAD ---
         with col_dl:
             with open(found_path, "rb") as pdf_file:
                 if st.download_button(
@@ -1055,23 +946,19 @@ def show_detail(row, full_df):
                     mime="application/pdf",
                     key=f"dl_{spec_name}"
                 ):
-                    # Menggunakan fungsi universal yang baru
                     log_activity_to_gsheet(st.session_state.username, brand, model, "Download")
                     st.success("Download tercatat!")
 
-        # Persiapan Link Share
         public_url = f"{GITHUB_RAW_BASE}static/brochures/{spec_name_encoded}.pdf" 
         subject_mail = f"Product Specs: {brand} - {model}"
         share_msg = f"Check out this product: {brand} - {model}\nBrochure: {public_url}"
         
         with col_wa:
             wa_url = f"https://wa.me/?text={urllib.parse.quote(share_msg)}"
-            # Gunakan on_click untuk menjamin eksekusi log
             if st.button("📲 WhatsApp", key=f"wa_btn_{row.name}", use_container_width=True,
                          on_click=handle_share_logging, 
                          args=(st.session_state.username, brand, model, "WhatsApp")):
                 
-                # Membuka link hanya SETELAH callback logging dijalankan
                 js_wa = f'window.open("{wa_url}", "_blank").focus();'
                 st.components.v1.html(f'<script>{js_wa}</script>', height=0)
                 st.toast("WhatsApp activity recorded!")
@@ -1099,12 +986,9 @@ def filter_analytics_page():
     st.title("📊 Filter Analytics")
 
     try:
-        # Gunakan fungsi load_gsheet_data yang sudah ada
         data = load_gsheet_data("FilterLogs")
 
-        # --- 1. LOGIKA PRIVASI DATA (USER-SPECIFIC) ---
         if st.session_state.role != "Admin":
-            # User hanya melihat data miliknya sendiri (Case Insensitive)
             data = data[data['Username'].str.lower() == st.session_state.username.lower()]
         
         if data.empty:
@@ -1121,15 +1005,11 @@ def filter_analytics_page():
             'displayModeBar': True
         }
 
-        # --- DATA PREPARATION UNTUK NUMERIC FILTERS (AREA & SLOPE) ---
-        # Karena Area_Filter & Slope_Filter ada di tiap baris log, kita ambil 1 data per sesi pencarian
         unique_searches = data.drop_duplicates(subset=['Timestamp', 'Username']).copy()
 
-        # --- Visualisasi 1: Target Cleaning Area Clustering (Dari Area_Filter) ---
         st.divider()
         st.subheader("Target Cleaning Area Demand (m²/5h)")
         
-        # Konversi ke numerik dan ambil yang di atas 0 (asumsi 0 = tidak diisi/All)
         unique_searches['Area_Num'] = pd.to_numeric(unique_searches['Area_Filter'], errors='coerce').fillna(0)
         area_data = unique_searches[unique_searches['Area_Num'] > 0].copy()
 
@@ -1153,7 +1033,6 @@ def filter_analytics_page():
         else:
             st.info("Belum ada data numerik untuk Target Cleaning Area.")
 
-        # --- Visualisasi 2: Max Slope Clustering (Dari Slope_Filter) ---
         st.divider()
         st.subheader("Max Slope Preference (%)")
         
@@ -1180,7 +1059,6 @@ def filter_analytics_page():
         else:
             st.info("Belum ada data numerik untuk Max Slope.")
 
-        # --- Visualisasi 3: Environment Preference ---
         st.divider()
         st.subheader("Environment Preference")
         env_df = data[data['Category'] == 'Environment']
@@ -1198,7 +1076,6 @@ def filter_analytics_page():
             )
             st.plotly_chart(fig_env, use_container_width=True, config=plotly_config)
 
-        # --- Visualisasi 4: Most Searched Floor Types ---
         st.subheader("Most Searched Floor Types")
         floor_data = data[data['Category'] == 'Floor Type']
         if not floor_data.empty:
@@ -1215,7 +1092,6 @@ def filter_analytics_page():
             )
             st.plotly_chart(fig_floor, use_container_width=True, config=plotly_config)
 
-        # --- Visualisasi 5: Product Type Preference ---
         st.divider()
         st.subheader("Product Type Preference")
         pt_df = data[data['Category'] == 'Product Type']
@@ -1233,7 +1109,6 @@ def filter_analytics_page():
             )
             st.plotly_chart(fig_pt, use_container_width=True, config=plotly_config)
 
-        # --- Visualisasi 6: Obstacle Preference ---
         st.divider() 
         st.subheader("Obstacle Preference")
         obs_df = data[data['Category'] == 'Obstacle']
@@ -1251,7 +1126,6 @@ def filter_analytics_page():
             )
             st.plotly_chart(fig_obs, use_container_width=True, config=plotly_config)
 
-        # --- Visualisasi 7: Waste Type Preference ---
         st.divider()
         st.subheader("Waste Type Preference")
         waste_df = data[data['Category'] == 'Waste Type']
@@ -1269,7 +1143,6 @@ def filter_analytics_page():
             )
             st.plotly_chart(fig_waste, use_container_width=True, config=plotly_config)
 
-        # --- Visualisasi 8: Aisle Category Demand ---
         st.divider()
         st.subheader("Aisle Category Demand")
         aisle_df = data[data['Category'] == 'Aisle Category']
@@ -1287,7 +1160,6 @@ def filter_analytics_page():
             )
             st.plotly_chart(fig_aisle, use_container_width=True, config=plotly_config)
         
-        # --- Tabel Data Mentah dengan Tombol Export ---
         st.divider()
         st.subheader("📋 Detail Data Logs")
         df_display = data.iloc[::-1]
@@ -1304,7 +1176,7 @@ def filter_analytics_page():
     except Exception as e:
         st.error(f"Failed to load Dashboard: {e}")
        
-# --- MAIN APP ---
+
 def main():
     if 'logged_in' not in st.session_state: st.session_state.logged_in = False
     if 'form_key' not in st.session_state: st.session_state.form_key = 0
@@ -1355,29 +1227,21 @@ def main():
             st.session_state.form_key += 1
             st.rerun()
 
-        # --- REORDERED FILTERS ---
-        # 1. Brand/Category
+       
         pilihan_produk = st.sidebar.radio("Brand / Category", ["All", "Manual (Fiorentini)", "Autonomous (Gausium)"], key=f"radio_{st.session_state.form_key}")
-        
-        # 2. Product Type
+     
         filter_type = st.sidebar.multiselect("Product Type", sorted(df['Product_type'].dropna().unique().tolist()) if 'Product_type' in df.columns else [], key=f"type_{st.session_state.form_key}")
-        
-        # 3. Environment
+     
         filter_env = st.sidebar.multiselect("Environment", get_uniques('Environment'), key=f"env_{st.session_state.form_key}")
-        
-        # 4. Floor Type
+      
         filter_floor = st.sidebar.multiselect("Floor Type", get_uniques('Floor_Type_List'), key=f"floor_{st.session_state.form_key}")
-        
-        # 5. Target Cleaning Area (m²/5h)
+      
         filter_area = st.sidebar.number_input("Target Cleaning Area (m²/5h)", min_value=0, step=100, key=f"area_{st.session_state.form_key}")
-        
-        # 6. Max Slope
+    
         filter_slope = st.sidebar.number_input("Max Slope (°)", min_value=0, step=1, key=f"slope_{st.session_state.form_key}")
-        
-        # 7. Aisle Category
+     
         filter_aisle_cat = st.sidebar.multiselect("Aisle Category", get_uniques('Aisle Category'), key=f"aisle_{st.session_state.form_key}")
 
-        # 8. Obstacle 
         st.sidebar.subheader("Obstacle Selection")
         obs_options = get_uniques('Obstacle_List')
         selected_obstacles = []
@@ -1387,7 +1251,6 @@ def main():
                     if st.checkbox(obs, key=f"chk_obs_{obs}_{st.session_state.form_key}"):
                         selected_obstacles.append(obs)
 
-        # 9. Waste Type
         st.sidebar.subheader("Waste Type Selection")
         waste_options = get_uniques('Waste_Type_List')
         selected_wastes = []
@@ -1397,7 +1260,6 @@ def main():
                     if st.checkbox(wst, key=f"chk_wst_{wst}_{st.session_state.form_key}"):
                         selected_wastes.append(wst)
 
-        # --- APPLY FILTERS ---
         res = df.copy()
         if pilihan_produk == "Manual (Fiorentini)":
             res = res[res['Brand'].str.contains("Fiorentini", case=False, na=False)]
@@ -1424,50 +1286,35 @@ def main():
         res = apply_list_filter(res, 'Obstacle_List', selected_obstacles)
         res = apply_list_filter(res, 'Waste_Type_List', selected_wastes)
 
-        # ====================================================================
-        # [PERBAIKAN] DEFINISI FUNGSI DIPINDAH KE SINI AGAR BISA DIAKSES DI BAWAHNYA
-        # ====================================================================
         def handle_view_details(row, filters):
-            # 1. Jalankan logging filter (Pecah baris otomatis)
             log_filter_to_gsheet(st.session_state.username, filters)
-            # 2. Jalankan fungsi buka detail yang sudah Anda miliki
             click_detail(row)
 
-        # ==========================================
-        # --- MULAI TAMBAHAN KODE PRODUK POPULER ---
-        # ==========================================
         st.divider()
         st.subheader("⭐ Popular Products")
-        
-        # Daftar produk populer berdasarkan General Specifications
+     
         popular_specs = ["ICM 42-60", "ECOSMILE", "GIAMPY", "S34", "BEETLE", "PHANTAS", "OMNIE"]
-        
-        # Ambil data dari dataframe master (df), bukan res, agar selalu muncul terlepas dari filter
+
         popular_df = df[df['General Specifications'].isin(popular_specs)].drop_duplicates(subset=['General Specifications']).copy()
         
         if not popular_df.empty:
-            # Mengurutkan tampilan sesuai urutan pada list popular_specs
             popular_df['General Specifications'] = pd.Categorical(popular_df['General Specifications'], categories=popular_specs, ordered=True)
             popular_df = popular_df.sort_values('General Specifications')
-            
-            # Tampilkan dalam grid 4 kolom
+
             pop_cols = st.columns(4)
             for idx, (index, row) in enumerate(popular_df.iterrows()):
                 with pop_cols[idx % 4]:
                     with st.container(border=True):
-                        # Menampilkan gambar dan info produk
                         st.image(get_image_path(row['General Specifications']))
                         st.markdown(f"**{row['Brand']}**")
                         st.caption(row.get('General Specifications', '-'))
                         
-                        # Dummy filter parameter untuk kebutuhan logging saat View Details di-klik
                         pop_filters = {
                             'brand': 'Popular_Direct_Click', 'product_type': [], 'environment': [], 
                             'floor_type': [], 'area': 0, 'slope': 0, 'aisle_cat': [], 
                             'obstacle': [], 'waste_type': []
                         }
-                        
-                        # Tombol View Details
+
                         st.button(
                             "View Details", 
                             key=f"btn_pop_{index}_{row['General Specifications']}", 
@@ -1477,18 +1324,12 @@ def main():
         else:
             st.info("Data produk populer belum tersedia di database.")
         
-        # ==========================================
-        # --- AKHIR TAMBAHAN KODE PRODUK POPULER ---
-        # ==========================================
-        
         st.divider()
         st.subheader(f"Results: {len(res)} Products Found")
 
         def handle_view_details(row, filters):
-            # 1. Jalankan logging filter (Pecah baris otomatis)
             log_filter_to_gsheet(st.session_state.username, filters)
     
-            # 2. Jalankan fungsi buka detail yang sudah Anda miliki
             click_detail(row)
         
         
@@ -1500,45 +1341,36 @@ def main():
                         st.image(get_image_path(row['General Specifications']))
                         st.markdown(f"**{row['Brand']}**")
                         st.caption(row.get('Model Variations', '-'))
-                
-                        # --- KUMPULKAN FILTER YANG SEDANG AKTIF ---
-                        # Sesuaikan nama variabel di kanan (ptype_filter, dll) 
-                        # dengan nama variabel widget multiselect/slider Anda
+         
                         current_filters = {
-                            'brand': pilihan_produk,      # Sesuai baris 716
-                            'product_type': filter_type,  # Sesuai baris 719
-                            'environment': filter_env,    # Sesuai baris 722
-                            'floor_type': filter_floor,   # Sesuai baris 725
-                            'area': filter_area,          # Sesuai baris 728
-                            'slope': filter_slope,        # Sesuai baris 731
-                            'aisle_cat': filter_aisle_cat, # Sesuai baris 734
-                            'obstacle': selected_obstacles, # Sesuai baris 738
-                            'waste_type': selected_wastes   # Sesuai baris 747
+                            'brand': pilihan_produk,      
+                            'product_type': filter_type,  
+                            'environment': filter_env,    
+                            'floor_type': filter_floor,  
+                            'area': filter_area,          
+                            'slope': filter_slope,       
+                            'aisle_cat': filter_aisle_cat, 
+                            'obstacle': selected_obstacles, 
+                            'waste_type': selected_wastes   
                         }
-                
-                        # --- GANTI ON_CLICK KE WRAPPER ---
+
                         st.button(
                             "View Details", 
                             key=f"btn_{index}", 
                             on_click=handle_view_details, 
-                            args=(row, current_filters) # Kirim row DAN data filter
+                            args=(row, current_filters) 
                         )
         else:
             st.warning("No products match these filters.")
-                
-        # --- REVISI PEMANGGILAN DIALOG ---
-        # 1. Menangani Popup Detail Produk
+
         if st.session_state.show_dialog and st.session_state.detail_row is not None:
             show_detail(st.session_state.detail_row, df)
-            # KUNCI PERBAIKAN: Segera set ke False setelah fungsi dipanggil.
-            # Ini akan membersihkan antrean sehingga saat filter sidebar diubah (rerun),
-            # kondisi if ini tidak lagi terpenuhi secara otomatis.
+ 
             st.session_state.show_dialog = False
-        
-        # 2. Menangani Popup Perbandingan (Comparison)
+
         if st.session_state.show_compare:
             show_comparison(st.session_state.compare_base, df)
-            st.session_state.show_compare = False # KUNCI PERBAIKAN
+            st.session_state.show_compare = False
 
 if __name__ == "__main__":
     main()
