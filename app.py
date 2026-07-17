@@ -498,7 +498,7 @@ def log_login(username, role, status="Success"):
         else:
             updated_df = new_entry
             
-         conn.update(worksheet="LoginHistory", data=updated_df)
+            conn.update(worksheet="LoginHistory", data=updated_df)
         
     except Exception as e:
         st.error(f"Gagal mencatat log login ke GSheet: {e}")
