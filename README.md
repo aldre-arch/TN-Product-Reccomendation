@@ -1,4 +1,4 @@
-**"Product Recommendation Library"** 
+**Product Library** 
 
 This application is a web-based decision support and product recommendation platform built using **Streamlit (Python)**, utilizing **Google Sheets** as its database storage. The application is designed to streamline the searching, comparing, and analyzing of user interactions with an industrial cleaning equipment product catalog.
 
